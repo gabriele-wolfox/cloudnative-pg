@@ -1,0 +1,96 @@
+# Mock llm-d deployment for POC testing without GPU
+# In production, replace with actual llm-d Helm chart deployment
+#
+# For real llm-d deployment, see: https://github.com/llm-d/llm-d
+# helm install llm-d oci://ghcr.io/llm-d/llm-d-deployer/llm-d ...
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-d-mock
+  namespace: llm-d
+  labels:
+    app: llm-d-mock
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llm-d-mock
+  template:
+    metadata:
+      labels:
+        app: llm-d-mock
+    spec:
+      containers:
+        - name: llm-mock
+          image: python:3.11-slim
+          command:
+            - python
+            - -c
+            - |
+              from http.server import HTTPServer, BaseHTTPRequestHandler
+              import json
+
+              class LLMHandler(BaseHTTPRequestHandler):
+                  def do_POST(self):
+                      content_length = int(self.headers.get('Content-Length', 0))
+                      body = self.rfile.read(content_length).decode('utf-8')
+                      request = json.loads(body) if body else {}
+
+                      # Mock OpenAI-compatible response
+                      prompt = request.get('prompt', request.get('messages', [{}])[-1].get('content', ''))
+                      response = {
+                          "id": "mock-response",
+                          "object": "text_completion",
+                          "choices": [{
+                              "text": f"[Mock LLM Response] Based on the context provided, here is my answer to: {prompt[:100]}...",
+                              "index": 0,
+                              "finish_reason": "stop"
+                          }],
+                          "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30}
+                      }
+
+                      self.send_response(200)
+                      self.send_header('Content-Type', 'application/json')
+                      self.end_headers()
+                      self.wfile.write(json.dumps(response).encode())
+
+                  def do_GET(self):
+                      if self.path == '/health':
+                          self.send_response(200)
+                          self.send_header('Content-Type', 'application/json')
+                          self.end_headers()
+                          self.wfile.write(b'{"status": "healthy"}')
+                      else:
+                          self.send_response(404)
+                          self.end_headers()
+
+              print("Starting mock LLM server on port 8000...")
+              HTTPServer(('0.0.0.0', 8000), LLMHandler).serve_forever()
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-d-mock
+  namespace: llm-d
+spec:
+  selector:
+    app: llm-d-mock
+  ports:
+    - port: 8000
+      targetPort: 8000
