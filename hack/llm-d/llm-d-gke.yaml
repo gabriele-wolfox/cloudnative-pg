@@ -1,0 +1,105 @@
+# Real llm-d deployment for GKE with GPU
+# Uses vLLM to serve a small model (Llama-3.2-1B or Phi-3-mini)
+#
+# For full llm-d with inference gateway, see: https://github.com/llm-d/llm-d
+# This is a simplified vLLM deployment for POC purposes.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-d
+  namespace: llm-d
+  labels:
+    app: llm-d
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llm-d
+  template:
+    metadata:
+      labels:
+        app: llm-d
+    spec:
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:latest
+          args:
+            - "--model"
+            - "microsoft/Phi-3-mini-4k-instruct"  # Small model, fits in T4 (16GB)
+            - "--max-model-len"
+            - "4096"
+            - "--gpu-memory-utilization"
+            - "0.9"
+            - "--port"
+            - "8000"
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+                  optional: true  # Not needed for Phi-3
+          resources:
+            requests:
+              memory: "8Gi"
+              cpu: "2"
+              nvidia.com/gpu: "1"
+            limits:
+              memory: "16Gi"
+              cpu: "4"
+              nvidia.com/gpu: "1"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 60  # Model loading takes time
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+          volumeMounts:
+            - name: cache
+              mountPath: /root/.cache
+      volumes:
+        - name: cache
+          emptyDir:
+            sizeLimit: 20Gi
+      nodeSelector:
+        cloud.google.com/gke-accelerator: nvidia-tesla-t4
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-d
+  namespace: llm-d
+spec:
+  selector:
+    app: llm-d
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+---
+# Optional: HuggingFace token for gated models (not needed for Phi-3)
+# Create with: kubectl create secret generic hf-token -n llm-d --from-literal=token=YOUR_HF_TOKEN
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hf-token
+  namespace: llm-d
+type: Opaque
+stringData:
+  token: ""  # Add your HF token here if using gated models like Llama
