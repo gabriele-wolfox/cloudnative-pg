@@ -1,15 +1,15 @@
 #!/bin/bash
-# Cleanup script for llm-d + CloudNativePG POC
+# Cleanup script for the local (Kind) POC
 set -euo pipefail
 
-echo "=== Cleaning up llm-d + CloudNativePG POC ==="
+echo "=== Cleaning up CloudNativePG + LLM RAG POC ==="
 
-# Delete Kind cluster
-if kind get clusters | grep -q "llm-d-poc"; then
+if kind get clusters | grep -qx "llm-d-poc"; then
     echo "Deleting Kind cluster 'llm-d-poc'..."
     kind delete cluster --name llm-d-poc
 else
     echo "Kind cluster 'llm-d-poc' not found."
 fi
+rm -rf "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.venv"
 
 echo "Cleanup complete."

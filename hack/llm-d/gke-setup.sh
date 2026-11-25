@@ -14,7 +14,7 @@ PROJECT_ID="${GCP_PROJECT_ID:-}"
 REGION="${GCP_REGION:-us-central1}"
 ZONE="${GCP_ZONE:-us-central1-a}"
 CLUSTER_NAME="${CLUSTER_NAME:-llm-d-poc}"
-CNPG_VERSION="${CNPG_VERSION:-1.25.1}"
+CNPG_VERSION="${CNPG_VERSION:-1.30.2}"
 
 # GPU Configuration
 # T4 is cheapest (~$0.35/hr), L4 is faster (~$0.70/hr)
@@ -59,7 +59,7 @@ else
         --project="${PROJECT_ID}" \
         --zone="${ZONE}" \
         --num-nodes=1 \
-        --machine-type=e2-standard-2 \
+        --machine-type=e2-standard-4 \
         --disk-size=50GB \
         --enable-ip-alias \
         --workload-pool="${PROJECT_ID}.svc.id.goog"
@@ -114,10 +114,11 @@ kubectl apply -f "${SCRIPT_DIR}/postgres-cluster.yaml"
 echo "Waiting for PostgreSQL cluster..."
 kubectl wait --for=condition=Ready cluster/vectordb -n llm-d --timeout=300s
 
-# Deploy real llm-d (not mock)
+# Deploy the GPU chat model (vLLM) and the CPU embedding server
 echo ""
-echo "Step 8: Deploying llm-d with vLLM..."
+echo "Step 8: Deploying vLLM (chat, GPU) and Ollama (embeddings, CPU)..."
 kubectl apply -f "${SCRIPT_DIR}/llm-d-gke.yaml"
+kubectl apply -f "${SCRIPT_DIR}/ollama.yaml"
 
 echo ""
 echo "=== GKE Setup Complete ==="
@@ -129,9 +130,8 @@ echo ""
 echo "Waiting for llm-d to be ready (model download may take 5-10 minutes)..."
 echo "Monitor with: kubectl logs -f deployment/llm-d -n llm-d"
 echo ""
-echo "To test:"
-echo "  kubectl port-forward svc/llm-d -n llm-d 8000:8000"
-echo "  curl http://localhost:8000/v1/completions -d '{\"prompt\": \"Hello\", \"max_tokens\": 50}'"
+echo "To test (once llm-d and ollama are Ready):"
+echo "  ./test.sh"
 echo ""
 echo "IMPORTANT: To avoid charges, delete when done:"
 echo "  ./gke-cleanup.sh"

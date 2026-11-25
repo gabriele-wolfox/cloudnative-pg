@@ -1,3 +1,5 @@
+> **Note:** draft article written for the first iteration of this POC (mock LLM and mock embeddings). The working setup is described in [README.md](README.md).
+
 # Building a RAG Stack on Kubernetes with CloudNativePG, pgvector, and llm-d
 
 Modern AI applications increasingly rely on Retrieval Augmented Generation (RAG) to provide LLMs with relevant context from your own data. This article walks through building a complete RAG stack on Kubernetes using three powerful open-source projects:
