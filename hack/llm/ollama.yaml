@@ -1,0 +1,92 @@
+# CPU-only, OpenAI-compatible model server for local testing.
+#
+# It serves two models:
+#   - an embedding model, used to vectorize documents and questions
+#   - a small chat model, used to answer questions
+#
+# The RAG app only speaks the OpenAI API (/v1/embeddings, /v1/chat/completions),
+# so the chat model can be swapped for any compatible server by changing LLM_URL.
+#
+# To use different models, edit the MODELS variable below and re-apply.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: llm
+  labels:
+    app: ollama
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      initContainers:
+        # Pre-pull the models into the shared volume so that the server is
+        # ready to answer as soon as it is marked Ready
+        - name: pull-models
+          image: ollama/ollama:0.6.5
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              ollama serve >/tmp/serve.log 2>&1 &
+              until ollama list >/dev/null 2>&1; do sleep 1; done
+              for m in ${MODELS}; do
+                echo "Pulling ${m}..."
+                ollama pull "${m}"
+              done
+          env:
+            - name: MODELS
+              value: "nomic-embed-text qwen2.5:1.5b"
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+      containers:
+        - name: ollama
+          image: ollama/ollama:0.6.5
+          env:
+            - name: OLLAMA_KEEP_ALIVE
+              value: "24h"
+            - name: OLLAMA_CONTEXT_LENGTH
+              value: "8192"
+          ports:
+            - containerPort: 11434
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "3Gi"
+              cpu: "2"
+            limits:
+              memory: "8Gi"
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+      volumes:
+        - name: models
+          emptyDir:
+            sizeLimit: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: llm
+spec:
+  selector:
+    app: ollama
+  ports:
+    - port: 11434
+      targetPort: 11434
+      name: http
