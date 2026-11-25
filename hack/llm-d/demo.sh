@@ -41,6 +41,9 @@ else
     }
 fi
 
+# Start from a clean state, so that every recording looks the same
+psql -q -c "DROP TABLE IF EXISTS faq, ${RAG_TABLE}" >/dev/null
+
 # --- helpers ---------------------------------------------------------------
 say() {  # comment line, in cyan
     printf '\n\033[1;36m# %s\033[0m\n' "$*"
@@ -79,7 +82,7 @@ run head -5 demo-app/sample-data/pgvector.md
 run rag.py ingest-files demo-app/sample-data
 
 say "...and rows already stored in PostgreSQL"
-run "psql -c \"CREATE TABLE IF NOT EXISTS faq (id int PRIMARY KEY, answer text); INSERT INTO faq VALUES (1, 'The POC database is called ragdb and is owned by raguser.'), (2, 'The POC runs in the llm-d namespace.') ON CONFLICT DO NOTHING\""
+run "psql -c \"CREATE TABLE faq (id int PRIMARY KEY, answer text); INSERT INTO faq VALUES (1, 'The POC database is called ragdb and is owned by raguser.'), (2, 'The POC runs in the llm-d namespace.')\""
 run "rag.py ingest-sql \"SELECT 'faq-' || id, answer FROM faq\""
 run rag.py stats
 
