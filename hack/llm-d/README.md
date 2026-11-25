@@ -52,7 +52,8 @@ can take several minutes.
 
 ### Demo recording
 
-[`demo.cast`](demo.cast) is an [asciinema](https://asciinema.org) recording of
+[`demo.mp4`](demo.mp4) is a video of the walkthrough, rendered from
+[`demo.cast`](demo.cast), an [asciinema](https://asciinema.org) recording of
 the scripted walkthrough in `demo.sh`: it ingests files and table rows, shows
 the stored vectors, and asks the LLM a few questions (including one it must
 refuse, as it is not covered by the data).
@@ -232,6 +233,7 @@ hack/llm-d/
 ├── env.sh                      # connection settings for rag.py (source it)
 ├── test.sh                     # end-to-end test
 ├── demo.sh / demo.cast         # scripted walkthrough and its asciinema recording
+├── demo.mp4                    # video rendered from demo.cast
 ├── kind-config.yaml
 ├── postgres-cluster.yaml       # CloudNativePG cluster with pgvector
 ├── ollama.yaml                 # CPU embeddings + chat model
