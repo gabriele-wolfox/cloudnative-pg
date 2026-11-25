@@ -50,6 +50,20 @@ cd hack/llm-d
 The first `setup.sh` run downloads the model server image and the models, so it
 can take several minutes.
 
+### Demo recording
+
+[`demo.cast`](demo.cast) is an [asciinema](https://asciinema.org) recording of
+the scripted walkthrough in `demo.sh`: it ingests files and table rows, shows
+the stored vectors, and asks the LLM a few questions (including one it must
+refuse, as it is not covered by the data).
+
+```bash
+asciinema play demo.cast                  # replay in the terminal
+asciinema rec -c ./demo.sh demo.cast      # record it again (after ./setup.sh)
+```
+
+`TYPE_DELAY` and `PAUSE` tune the typing speed and the pause after each command.
+
 ## Using your own data
 
 Open the tunnels in a separate terminal and leave it running:
@@ -217,6 +231,7 @@ hack/llm-d/
 ├── port-forward.sh             # PostgreSQL + model server on localhost
 ├── env.sh                      # connection settings for rag.py (source it)
 ├── test.sh                     # end-to-end test
+├── demo.sh / demo.cast         # scripted walkthrough and its asciinema recording
 ├── kind-config.yaml
 ├── postgres-cluster.yaml       # CloudNativePG cluster with pgvector
 ├── ollama.yaml                 # CPU embeddings + chat model
